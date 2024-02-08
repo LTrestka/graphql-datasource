@@ -1,51 +1,158 @@
-<!-- This README file is going to be the one displayed on the Grafana.com website for your plugin. Uncomment and replace the content here before publishing.
+# GraphQL Data Source
 
-Remove any remaining comments before publishing as these may be displayed on Grafana.com -->
+![CI](https://github.com/fifemon/graphql-datasource/workflows/CI/badge.svg)
 
-# Graphql-Datasource
+[Grafana](https://grafana.com) datasource plugin that provides access to a
+GraphQL API for numerical timeseries data, general/tabular data,
+annotations, and dashboard variables.
 
-Generic graph ql data source
+- The GraphQL query must be structured so that the data of interest is returned
+  under the configurable data path (default `data`) in the response. If the
+  object at that path is an array it will be iterated over, with each object added
+  as a row in the data frame, otherwise the result object will be the only row.
+  - Can be separated by commas to use multiple data paths
+- Timeseries data must include a timestamp field under the data path, default
+  `Time`, in [ISO8601](https://momentjs.com/docs/#/parsing/string/) or a
+  configurable [custom
+  format](https://momentjs.com/docs/#/parsing/string-format/).
+- Nested types will be flattened into dot-delimited fields.
+- Grafana variables should be substituted directly in the query (instead of
+  using GraphQL variables). The dashboard time ranges are available in the
+  [global variables](https://grafana.com/docs/grafana/latest/variables/variable-types/global-variables/)
+  `$__from` and `$__to` as millisecond epoch (or in whatever format is needed by the API
+  in Grafana 7.1.2 or later).
+- Group by can be used to group elements into multiple data points.
+- Alias by is used to alter the name of the field displayed in the legend.
+  `$field_<field.name>` is substituted with the values of the field and
+  `$fieldName` is substituted with the name of the field.
 
-<!-- To help maximize the impact of your README and improve usability for users, we propose the following loose structure:
+# Screenshots
 
-**BEFORE YOU BEGIN**
-- Ensure all links are absolute URLs so that they will work when the README is displayed within Grafana and Grafana.com
-- Be inspired ✨
-  - [grafana-polystat-panel](https://github.com/grafana/grafana-polystat-panel)
-  - [volkovlabs-variable-panel](https://github.com/volkovlabs/volkovlabs-variable-panel)
+![DeutscheBahn Arrivals Table](https://user-images.githubusercontent.com/1627510/90258294-f1bf2b00-de0d-11ea-8768-34b4ef37c125.png)
+![DeutscheBahn Arrivals Annotations](https://user-images.githubusercontent.com/1627510/90258316-f8e63900-de0d-11ea-91eb-d40532d5b768.png)
+![GitHub Security Advisories](https://user-images.githubusercontent.com/1627510/90258319-fbe12980-de0d-11ea-8ea2-c97bbc398aa4.png)
+![DeutscheBahn Station Variable](https://user-images.githubusercontent.com/1627510/110505565-e1c9aa00-80c3-11eb-85bb-10e5471fb151.png)
 
-**ADD SOME BADGES**
+# Examples
 
-Badges convey useful information at a glance for users whether in the Catalog or viewing the source code. You can use the generator on [Shields.io](https://shields.io/badges/dynamic-json-badge) together with the Grafana.com API
-to create dynamic badges that update automatically when you publish a new version to the marketplace.
+Below are some example queries demonstrating how to use the plugin, using the
+[FIFEMon GraphQL test source
+server](https://github.com/fifemon/graphql-test-source/), which also includes a
+[dashboard](https://raw.githubusercontent.com/fifemon/graphql-test-source/master/doc/graphql-test-dashboard.json)
+demonstrating these queries.
 
-- For the logo field use 'grafana'.
-- Examples (label: query)
-  - Downloads: $.downloads
-  - Catalog Version: $.version
-  - Grafana Dependency: $.grafanaDependency
-  - Signature Type: $.versionSignatureType
+## Basic timeseries
 
-Full example: ![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?logo=grafana&query=$.version&url=https://grafana.com/api/plugins/grafana-polystat-panel&label=Marketplace&prefix=v&color=F47A20)
+```graphql
+query {
+  data: simple_series(from: "${__from:date:iso}", to: "${__to:date:iso}", interval_ms: $__interval_ms) {
+    Time: timestamp
+    value
+  }
+}
+```
 
-Consider other [badges](https://shields.io/badges) as you feel appropriate for your project.
+Note the use of the global `$__from` and `$__to` variables to insert the
+dashboard time range into the query and the use of `$__interval_ms` to specify
+the appropriate time interval for the graph.
 
-## Overview / Introduction
-Provide one or more paragraphs as an introduction to your plugin to help users understand why they should use it.
+## Custom time format
 
-Consider including screenshots:
-- in [plugin.json](https://grafana.com/developers/plugin-tools/reference-plugin-json#info) include them as relative links.
-- in the README ensure they are absolute URLs.
+```graphql
+query {
+  simple_series(
+    from: "${__from:date:iso}"
+    to: "${__to:date:iso}"
+    interval_ms: $__interval_ms
+    format: "MM.dd.uuuu HHmmss"
+  ) {
+    timestamp
+    value
+  }
+}
+```
 
-## Requirements
-List any requirements or dependencies they may need to run the plugin.
+- Data path: `simple_series`
+- Time path: `timestamp`
+- Time format: `MM.DD.YYYY HHmmss`
 
-## Getting Started
-Provide a quick start on how to configure and use the plugin.
+## Alias and group by
 
-## Documentation
-If your project has dedicated documentation available for users, provide links here. For help in following Grafana's style recommendations for technical documentation, refer to our [Writer's Toolkit](https://grafana.com/docs/writers-toolkit/).
+```graphql
+query {
+  complex_series(from: "${__from:date:iso}", to: "${__to:date:iso}", interval_ms: $__interval_ms) {
+    time {
+      timestamp
+    }
+    value
+    group {
+      id
+      name
+    }
+  }
+}
+```
 
-## Contributing
-Do you want folks to contribute to the plugin or provide feedback through specific means? If so, tell them how!
--->
+- Data path: `complex_series`
+- Time path: `time.timestamp`
+- Group by: `group.id`
+- Alias by: `$field_group.name`
+
+In the above example, "Group by" and "Alias by" are defined. "Group by" allows
+you to split up an array of data into multiple data points. "Alias by" is used
+as the name of the data point. You can make alias use text from the query or
+even the field name by using `$field_<your.field.name>` for the value of the
+field, or `$fieldName` for the name of the field. If `$fieldName` was used, it
+would be replaced by "value" because that's the name of the field. If
+`$field_group.name` was used, it would be replaced with the value
+of `name`. Using `$fieldName` can be useful if you're querying multiple
+numeric fields that you want displayed in your graph.
+
+## Annotations
+
+```graphql
+query {
+  events(from: "${__from:date:iso}", to: "${__to:date:iso}", end: true) {
+    timestamp
+    end_timestamp
+    name
+    description
+    tags
+  }
+}
+```
+
+- Data path: `events`
+- Time path: `timestamp`
+- End time path: `end_timestamp`
+- Title: `$field_name`
+- Text: `$field_description`
+- Tags: `tag1, tag2`
+
+The above annotation example is similar to regular queries. You are able to
+define a data path, time path, and time format. Similar to the last example, you
+can also substitute values into the title, text, and tags by using
+`$field_<field name>`. Tags are separated by commas. The above example has two
+tags: "tag1" and "tag2".
+
+If the optional end time field is defined and present, the annotation will be
+shown over a period of time.
+
+## Dashboard Variable Queries
+
+Dashboard variables can be populated by a GraphQL query that returns an array of
+objects. If the objects contain both `__text` and `__value` fields then they
+will be used (the `__text` field will be displayed, the `__value` field will be
+used in substitutions). Otherwise the values of all fields will be appended to
+the variable value list.
+
+```graphql
+query {
+  groups {
+    __value: id
+    __text: name
+  }
+}
+```
+
+- Data path: `groups`

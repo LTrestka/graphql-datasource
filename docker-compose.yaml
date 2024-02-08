@@ -14,17 +14,3 @@ services:
     volumes:
       - ./dist:/var/lib/grafana/plugins/fermilab-graphql-datasource
       - ./provisioning:/etc/grafana/provisioning
-    networks:
-      - grafana
-  datasource:
-    image: datasource
-    container_name: datasource
-    build: 
-      context: graphql-test-source
-    ports:
-      - '8888:8888'
-    networks:
-      - grafana
-networks:
-  grafana:
-    driver: bridge

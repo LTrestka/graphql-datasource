@@ -1,11 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "datasource",
-  "name": "Graphql-Datasource",
+  "name": "fermilab-graphql-datasource",
   "id": "fermilab-graphql-datasource",
   "metrics": true,
   "info": {
-    "description": "Generic graph ql data source",
+    "description": "Generic GraphQL data source",
     "author": {
       "name": "Fermilab"
     },

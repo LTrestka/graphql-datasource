@@ -1,5 +1,5 @@
 import React, { ChangeEvent } from 'react';
-import { InlineField, Input, SecretInput } from '@grafana/ui';
+import { DataSourceHttpSettings, InlineField, Input, SecretInput } from '@grafana/ui';
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
 import { MyDataSourceOptions, MySecureJsonData } from '../types';
 
@@ -41,9 +41,21 @@ export function ConfigEditor(props: Props) {
 
   const { jsonData, secureJsonFields } = options;
   const secureJsonData = (options.secureJsonData || {}) as MySecureJsonData;
-
   return (
     <div className="gf-form-group">
+      <DataSourceHttpSettings
+        defaultUrl="http://localhost:8888/api"
+        dataSourceConfig={options}
+        onChange={onOptionsChange}
+        showAccessOptions={true}
+      />
+      <InlineField label="Options" labelWidth={12}>
+      <Input
+          onChange={onPathChange}
+          value=""
+          width={40}
+        />
+      </InlineField>
       <InlineField label="Path" labelWidth={12}>
         <Input
           onChange={onPathChange}
